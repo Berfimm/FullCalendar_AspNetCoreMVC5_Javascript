@@ -17,12 +17,7 @@ namespace W2UIFullCalendarProject.Data
         {
 
         }
-
-       
         public DbSet<RDWorklogTracking> RDWorklogTracking { get; set; }
-
-        //public DbSet<LG_918_INVDEF> LG_918_INVDEF { get; set; }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
          
