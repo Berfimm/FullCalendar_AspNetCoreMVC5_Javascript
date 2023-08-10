@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace TCPortal.Models
+namespace W2UIFullCalendarProject.Models
 {
     public class RDWorklogTracking
     {
