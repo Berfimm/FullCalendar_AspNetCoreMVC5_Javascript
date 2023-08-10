@@ -1,0 +1,618 @@
+﻿@{ Layout = null; }
+@using Microsoft.AspNetCore.Http
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <link href="~/fullcalender_3.10.2/w2ui.min.css" rel="stylesheet" />
+    <script src="~/fullcalendar-6.1.8/dist/index.global.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="~/fullcalendar-6.1.8/packages/bootstrap5/index.global.min.js"></script>
+    <script src="~/fullcalendar-6.1.8/packages/core/locales/tr.global.min.js"></script>
+    <link href="~/fullcalendar-6.1.8/superhero_bootstrap.min.css" rel="stylesheet" />
+    <link href="~/fullcalendar-6.1.8/dist/fullcalender.css" rel="stylesheet" />
+
+    <script type="module">
+        import { w2alert, w2popup, w2utils, w2ui, w2form, query } from '../fullcalender_3.10.2/w2ui.es6.min.js'
+        w2utils.locale('/fullcalender_3.10.2/tr-tr.json');
+        /////////////////////////////////////  CALENDER   ////////////////////////////////////////////////////
+        var globalCalendarInstance;
+        document.addEventListener('DOMContentLoaded', function () {
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                height: '100%',
+                expandRows: true,
+                themeSystem: 'bootstrap',
+                stickyHeaderDates: true, // for disabling
+                nowIndicator: true,
+                unselectAuto: false,
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'timeGridDay,listDay,timeGridWeek,listWeek'//,dayGridMonth,multiMonthYear
+                },
+                locale: 'tr',
+                views: {
+                    listMonth: { buttonText: 'list month' },
+                    listYear: { buttonText: 'list year' }
+                },
+                initialView: 'timeGridWeek',
+                /*initialDate: '2023-01-12',*/
+                selectMirror: true,
+                editable: true,
+                selectable: true,
+                dayMaxEvents: true, // allow "more" link when too many events
+                // multiMonthMaxColumns: 1, // guarantee single column
+                // showNonCurrentDates: true,
+                // fixedWeekCount: false,
+                businessHours: {
+                   /* daysOfWeek: [1, 2, 3, 4, 5], // Monday - Friday*/
+                    startTime: '08:00', // Business hours start at 9:00 AM
+                    endTime: '17:30' // Business hours end at 5:00 PM
+                },
+                //weekends: false,
+                events: function (fetchInfo, successCallback, failureCallback) {
+                    fetch('/PersonalWorkLog/GetTodayPersonalData?persid='+ 1 @*@Context.Session.GetInt32("Id")*@)
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .then(function (allData) {
+                        var processedEvents = allData.map(function (event) {
+                            return {
+                                id: event.id,
+                                title: event.wL_Title,
+                                project: event.wL_Project,
+                                description: event.wL_Description,
+                                creatorName: event.wL_CreatedBy,
+                                color: 'rgb(255,165,53,0.6)',// '#5389D6',
+                                borderColor: 'rgb(255,165,53)',
+                                start: moment(event.wL_StartDate).format("YYYY-MM-DD HH:mm"),
+                                end: moment(event.wL_FinishDate).format("YYYY-MM-DD HH:mm"),
+                            };
+                        });
+                        successCallback(processedEvents);
+                    })
+                    .catch(function (error) {
+                        failureCallback(error);
+                    });
+                },
+                eventContent: function (arg) {
+                   /* console.log(arg);*/
+                    var eventContent =
+                        '<div class="custom-event-class" style="color: white; font-family: Calibri; background-color: #fc9047; font-weight: 600; padding: 0px 4px  0px 0px;border-radius:5px ">' +
+                        arg.timeText + ' / ' + '<b>' + arg.event.title + '</b>' +
+                        '</div>';
+                    var eventContent1 =
+                        '<div class="custom-event-class" style="color: white; font-family: Calibri; font-weight: 600">' +
+                        arg.timeText + ' / ' + '<b>' + arg.event.title + '</b>' +
+                        '</div>';
+
+                    // Apply project information for timeGridWeek and timeGridDay views
+                    if (arg.view.type === 'timeGridWeek' || arg.view.type === 'timeGridDay') {
+                        eventContent +=
+                            '<div class="custom-project-class" style="position: absolute; top: 0; right: 0; padding: 0px 4px 0px 0px; color: #2b3e50;font-weight:bold; font-family: Calibri; font-size: 12px;">' +
+                            arg.event.extendedProps.project +
+                            '</div>';
+                    }
+
+                    // Apply project information for listWeek and listDay views
+                    if (arg.view.type === 'listWeek' || arg.view.type === 'listDay') {
+                        eventContent =
+                            '<div class="custom-project-class" style="background-color:tranparent; color: rgb(255, 165, 53); font-family: Calibri; font-size: 15px;font-weight: 800;">' +
+                            arg.event.extendedProps.project +
+                            '</div>' +
+                        eventContent1;
+                    }
+
+
+                    return { html: eventContent };
+                },
+                //resources: aa,
+                select: function (arg) {
+                    addEventPopup(arg)
+                },
+                eventDrop: function (info) {
+                    sendDraggedResizedEventToController(info);
+                },
+                eventResize: function (info) {
+                    sendDraggedResizedEventToController(info);
+                },
+                eventClick: function (arg) {
+                    editEventPopup(arg)
+                    //if (confirm('Are you sure you want to delete this event?')) {
+                    //    arg.event.remove()
+                    //}
+                },
+            });
+
+
+                //calendar.setOption('headerToolbar', {
+                //left: 'prev,next today', // Add your custom button here
+                //center: 'title',
+                //right: 'timeGridDay,listDay,timeGridWeek,listWeek,homePage',
+                //});
+                //calendar.setOption('customButtons', {
+                //    homePage: {
+                //        text: '| Anasayfa |',
+                //        click: function () {
+                //            window.location.href = '/Home/Index';
+                //        }
+                //    }
+                //});
+           
+
+            calendar.render();
+            globalCalendarInstance = calendar;
+        });
+        /////////////////////////////////////  POPUPS   ////////////////////////////////////////////////////
+
+        window.addEventPopup = function (arg) {
+            if (w2ui.addEventForm) {
+                w2ui.addEventForm.destroy();
+            }
+            new w2form({
+                name: 'addEventForm',
+                style: 'border: 0px; background-color: transparent;',
+                fields: [
+                    { field: 'wL_Project', required: true, html: { label: 'Proje', attr: 'autocomplete="off"' }},
+                    { field: 'wL_Title', required: true, html: { label: 'Tanım', attr: 'autocomplete="off"' } },
+                    { field: 'wL_Description', required: true, type: 'textarea', html: { label: 'Yapılan İş', attr: 'autocomplete="off"' } },
+                    { field: 'wL_StartDate', required: true, type: 'datetime', html: { label: 'Başlangıç Tarihi', attr: 'autocomplete="off"' }, option: { format: "DD.MM.YYYY HH:mm" }},
+                    { field: 'wL_FinishDate', required: true, type: 'datetime', html: { label: 'Bitiş Tarihi', attr: 'autocomplete="off"' }, option: { format: "DD.MM.YYYY HH:mm" }},
+
+                ],
+                record: {
+                    wL_StartDate: moment(arg.start).format("DD.MM.YYYY HH:mm"),
+                    wL_FinishDate: moment(arg.end).format("DD.MM.YYYY HH:mm"),
+                },
+                onRender(event) {
+                    var inputElement = document.querySelector('#w2ui-popup input[name="wL_Title"]');
+                    if (inputElement) {
+                        inputElement.focus();
+                    }
+                },
+                actions: {
+                    /*Reset() { this.clear() },*/
+                    saveCustomBtn: {
+                        id: "kaydet",
+                        //hidden : true,
+                        text: "YAPILAN İŞİ KAYDET",
+                        class: "w2ui-btn w2ui-btn-blue",
+                        style: 'color: white;font-weight:bold',
+                        onClick(event) {
+                            this.validate()
+                            console.log(this.validate())
+                            if (this.validate().length > 0) {
+                                console.log("Zorunlu alanlar!");
+                            } else {
+                                var formData = w2ui.addEventForm.record;
+                                var bas_tar = changeDatesForDB(formData.wL_StartDate);
+                                var bit_tar = changeDatesForDB(formData.wL_FinishDate);
+                                if (allblanksDataControl(formData)) {
+
+                                    if (bit_tar > bas_tar) {
+
+                                        w2popup.lock("BAŞLATILIYOR...", true)
+                                        console.log(formData.wL_StartDate, formData.wL_FinishDate)
+                                        var datalast = {
+                                            WL_CreatedById:1, @*@Context.Session.GetInt32("Id"),*@
+                                            WL_Project: formData.wL_Project,
+                                            WL_Title: formData.wL_Title,
+                                            WL_Description: formData.wL_Description,
+                                            WL_StartDate: bas_tar,
+                                            WL_FinishDate: bit_tar,
+                                        };
+                                        const data = JSON.stringify(datalast);
+                                        fetch('/PersonalWorkLog/CreateNewLog', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: data
+                                        })
+                                            .then(response => {
+                                                if (response.ok) {
+                                                    return response.json();
+                                                } else {
+                                                    console.error('Veri gönderme hatası:', response.statusText);
+                                                }
+                                            })
+                                            .then(data => {
+                                                console.log(data.wL_CreatedById)
+                                                globalCalendarInstance.unselect();
+                                                var persid = data.wL_CreatedById;
+                                                getPersonalDatas(persid)
+                                                w2ui.addEventForm.refresh();
+                                                w2popup.unlock()
+
+                                                w2popup.close()
+                                                w2utils.notify('Başarıyla eklenmiştir.', { timeout: 1000, error: true, pos: 'top-right', })
+                                            })
+                                            .catch(error => {
+                                                console.error('İstek hatası:', error);
+
+                                            });
+
+                                    }
+                                    else {
+                                        w2utils.notify('Lütfen girilen tarih bilgilerini kontrol ediniz.', { timeout: 2000, error: true, pos: 'top-right', })
+                                    }
+
+                                }
+                                else {
+                                    w2utils.notify('Lütfen gerekli bilgileri giriniz.', { timeout: 1000, error: true, pos: 'top-right', })
+                                }
+
+
+                            }
+                        }
+
+                    }
+                },
+            });
+            //}
+            w2popup.open({
+                //title: 'Form in a Popup',
+                body: '<div id="addEventform" style="width: 100%; height: 100%;"></div>',
+                style: 'padding: 15px 0px 0px 0px;baclground-color:red',
+                color: 'black',    // color of the screen lock
+                opacity: 0,       // opacity of the screen lock
+                speed: 0.3,       // speed popup appears
+                //buttons: 'Popup Buttons',
+                width: 400,
+                height: 315,
+                showMax: false,
+                onClose: function(event)  {
+                    globalCalendarInstance.unselect();
+                },
+                async onToggle(event) {
+                    await event.complete
+                    w2ui.addEventForm.resize();
+                }
+            })
+                .then((event) => {
+                    //w2ui.addEventForm.refresh()
+                    //console.log(event)
+                    w2ui.addEventForm.render('#addEventform')
+                });
+        }
+        window.editEventPopup = function (arg) {
+            if (w2ui.formEdit) {
+                w2ui.formEdit.destroy();
+            }
+            if (!w2ui.formEdit) {
+                new w2form({
+                    name: 'formEdit',
+                    style: 'border: 0px; background-color: transparent;',
+                    fields: [
+                        { field: 'id', hidden: true, html: { label: 'ID' } },
+                        { field: 'wL_Project', required: true, html: { label: 'Proje', attr: 'autocomplete="off"' } },
+                        { field: 'wL_Title', required: true, html: { label: 'Tanım', attr: 'autocomplete="off"' } },
+                        { field: 'wL_Description', required: true, type: 'textarea', html: { label: 'Yapılan İş', attr: 'autocomplete="off"' } },
+                        { field: 'wL_StartDate', required: true, type: 'datetime', html: { label: 'Başlangıç Tarihi', attr: 'autocomplete="off"' }, option: { format: "DD.MM.YYYY HH:mm" } },
+                        { field: 'wL_FinishDate', required: true, type: 'datetime', html: { label: 'Bitiş Tarihi', attr: 'autocomplete="off"' }, option: { format: "DD.MM.YYYY HH:mm" } },
+                    ],
+                    record: {
+                        id: arg.event.id,
+                        wL_Project: arg.event.extendedProps.project,
+                        wL_Title: arg.event.title,
+                        wL_Description: arg.event.extendedProps.description,
+                        wL_StartDate: moment(arg.event.start).format("DD.MM.YYYY HH:mm"),
+                        wL_FinishDate: moment(arg.event.end).format("DD.MM.YYYY HH:mm"),
+                    },
+                    //onRender(event) {
+                    //    var inputElement = document.querySelector('#w2ui-formEdit input[name="wL_Project"]');
+                    //    if (inputElement) {
+                    //        inputElement.focus();
+                    //    }
+                    //},
+                    actions: {
+                        deleteCustomBtn: {
+                            id: "deleteAction",
+                            //hidden : true,
+                            text: "KAYDI SİL",
+                            class: "w2ui-btn w2ui-btn-red",
+                            style: 'color: white;font-weight:bold',
+                            onClick(event) {
+                                w2popup.lock("SİLİNİYOR...", true)
+                                const url = '/PersonalWorkLog/deleteWorkLog?logid=' + w2ui.formEdit.record.id;
+                                fetch(url, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    // Additional options...
+                                })
+                                    .then(function (response) {
+                                        return response.json();
+                                    })
+                                    .then(function (data) {
+
+                                        console.log(data)
+                                        var persid = data.wL_CreatedById;
+                                        getPersonalDatas(persid)
+                                        w2popup.unlock()
+                                        w2popup.close()
+                                        w2utils.notify('Başarıyla silinmiştir.', { timeout: 1000, error: true, pos: 'top-right', })
+                                    })
+                                    .catch(function (error) {
+                                        console.log('Veri gönderme hatası:', error);
+                                    });
+                            }
+                        },
+                        editCustomBtn: {
+                            id: "editAction",
+                            //hidden : true,
+                            text: "DEĞİŞİKLİKLERİ KAYDET",
+                            class: "w2ui-btn w2ui-btn-blue",
+                            style: 'color: white;font-weight:bold',
+                            onClick(event) {
+                                this.validate()
+                                if (this.validate().length > 0) {
+                                    console.log("Zorunlu alanlar!");
+                                }
+                                else {
+                                    var formData = w2ui.formEdit.record;
+                                    if (allblanksDataControl(formData)) {
+
+                                        //console.log(formData.wL_StartDate, formData.wL_FinishDate)
+                                        var bas_tar = changeDatesForDB(formData.wL_StartDate);
+                                        var bit_tar = changeDatesForDB(formData.wL_FinishDate);
+                                        if (bit_tar > bas_tar) {
+                                            w2popup.lock("BAŞLATILIYOR...", true)
+                                             var datalast = {
+                                                ID: formData.id,
+                                                 WL_CreatedById: 1, @*@Context.Session.GetInt32("Id"),*@
+                                                WL_Project: formData.wL_Project,
+                                                WL_Title: formData.wL_Title,
+                                                WL_Description: formData.wL_Description,
+                                                WL_StartDate: bas_tar,
+                                                WL_FinishDate: bit_tar,
+                                            };
+                                            const data = JSON.stringify(datalast);
+                                            fetch('/PersonalWorkLog/EditWorkLog', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: data
+                                            })
+                                                .then(response => {
+                                                    if (response.ok) {
+                                                        return response.json();
+                                                    } else {
+                                                        console.error('Veri gönderme hatası:', response.statusText);
+                                                    }
+                                                })
+                                                .then(data => {
+                                                    var persid = data.wL_CreatedById;
+                                                    getPersonalDatas(persid)
+                                                    w2ui.formEdit.refresh();
+                                                    w2popup.unlock()
+                                                    w2popup.close()
+                                                    w2utils.notify('Başarıyla güncellenmiştir.', { timeout: 1000, error: true, pos: 'top-right', })
+                                                })
+                                                .catch(error => {
+                                                    console.error('İstek hatası:', error);
+
+                                                });
+                                        }
+                                        else {
+                                            w2utils.notify('Lütfen girilen tarih bilgilerini kontrol ediniz.', { timeout: 2000, error: true, pos: 'top-right', })
+                                        }
+
+                                    }
+                                    else {
+                                        w2utils.notify('Lütfen gerekli bilgileri giriniz.', { timeout: 1000, error: true, pos: 'top-right', })
+                                    }
+
+                                }
+                            }
+
+                        },
+
+
+
+                    }
+
+
+                });
+
+            }
+            else {
+                console.log("formEditi destroy etmek lazım")
+            }
+            w2popup.open({
+                title: false,
+                body: '<div id="editEventForm" style="width: 100%; height: 100%;"></div>',
+                style: 'padding: 0px 0px 0px 0px',
+                width: 400,
+                height: 300,
+                showMax: false,
+                scrollX: false,
+                onClose: function (event) {
+
+                },
+                async onToggle(event) {
+                    await event.complete;
+                    w2ui.formEdit.refresh()
+                    w2ui.formEdit.resize();
+                }
+            })
+            .then((event) => {
+                w2ui.formEdit.refresh();
+                w2ui.formEdit.render('#editEventForm')
+            });
+        }
+        /////////////////////////////////////  FUNCTIONS   ////////////////////////////////////////////////////
+        function formatDateTimeTurkish(dateTime) {
+            const options = {
+                timeZone: "Europe/Istanbul",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+            };
+            return dateTime;
+        }
+        function changeDatesForDB(dateTimeString) {//12.10.2023 12:30 u dbformata dönüştürüyor
+            console.log(dateTimeString);
+            let isoDateString = null;
+
+            if (dateTimeString != null) {
+                const [datePart, timePart] = dateTimeString.split(' ');
+                const [day, month, year] = datePart.split('.');
+                const [hour, minute] = timePart.split(':');
+
+                if (hour.length === 1) {
+                    var newhour = '0' + hour;
+                    console.log(newhour)
+                    isoDateString = `${year}-${month}-${day}T${newhour}:${minute}:00`;
+
+                }
+                else {
+                    console.log(hour)
+                    isoDateString = `${year}-${month}-${day}T${hour}:${minute}:00`;
+
+                }
+
+
+            }
+
+            return isoDateString;
+        }
+        function getPersonalDatas(persid) {
+            if (persid != 0) {
+                  fetch('/PersonalWorkLog/GetTodayPersonalData?persid='+ persid)
+                    .then(function (response) {
+                        return response.json();
+                    })
+                      .then(function (allData) {
+                         // console.log(allData)
+                           var aa = allData.map(function (event) {
+                                return {
+                                    id: event.id,
+                                    title: event.wL_Title,
+                                    project: event.wL_Project,
+                                    description: event.wL_Description,
+                                    creatorName: event.wL_CreatedBy,
+                                    color: 'rgb(255,165,53,0.8)',// '#5389D6',
+                                    borderColor: 'rgb(255,165,53)',
+                                    start: moment(event.wL_StartDate).format("YYYY-MM-DD HH:mm"),
+                                    end: moment(event.wL_FinishDate).format("YYYY-MM-DD HH:mm"),
+                                };
+                            });
+                            if (aa.length == 0) {
+
+                                    console.log("Herhangi bir data yok")
+                            }
+                          //console.log("sdsdf");
+                          globalCalendarInstance.refetchEvents()
+
+                    })
+                      .catch(function (error) {
+                          console.log('Veri gönderme hatası:' + error);
+                    });
+            }
+        }
+        function sendDraggedResizedEventToController(info) {
+            const url = '/PersonalWorkLog/UpdateDatesOfDraggedResizedLog?logid=' + info.event.id + '&dragStartDate=' + encodeURIComponent(formatDateTimeTurkish(info.event.start)) + '&dragFinishDate=' + encodeURIComponent(formatDateTimeTurkish(info.event.end));
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                // Additional options...
+            })
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (allData) {
+                // console.log(allData)
+                if (!Array.isArray(allData)) {
+                    allData = Object.values(allData);
+                }
+                var aa = allData.map(function (event) {
+                    return {
+                        id: event.id,
+                        title: event.wL_Title,
+                        project: event.wL_Project,
+                        description: event.wL_Description,
+                        creatorName: event.wL_CreatedBy,
+                        color: 'rgb(255,165,53,0.6)',// '#5389D6',
+                        borderColor: 'rgb(255,165,53)',
+                        start: moment(event.wL_StartDate).format("YYYY-MM-DD HH:mm"),
+                        end: moment(event.wL_FinishDate).format("YYYY-MM-DD HH:mm"),
+                    };
+                });
+                if (aa.length == 0) {
+
+                    console.log("Herhangi bir data yok")
+                }
+                globalCalendarInstance.refetchEvents()
+
+            })
+            .catch(function (error) {
+                console.log('Veri gönderme hatası:', error);
+            });
+
+        }
+        function allblanksDataControl(formData) {
+            for (const field in formData) {
+                if (!containsNonWhitespaceCharacters(formData[field])) {
+                    return false; // If any field contains only white spaces or is empty, return false
+                }
+            }
+            return true; // If all fields contain non-whitespace characters, return true
+        }
+        function containsNonWhitespaceCharacters(value) {
+            return /\S/.test(value);
+        }
+        /////////////////////////////////////     ////////////////////////////////////////////////////
+
+    </script>
+    <style>
+
+        html, body {
+            overflow: hidden;
+            font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
+            font-size: 14px;
+        }
+
+        #calendar-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .fc-header-toolbar {
+            padding-top: 1em;
+            padding-left: 1em;
+            padding-right: 1em;
+        }
+
+        .custom-text {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: transparent;
+            font-weight: 600;
+            color: rgb(151 0 0);
+            padding: 2px 5px;
+            font-size: 12px;
+        }
+    </style>
+    <link href="~/fullcalendar-6.1.8/dist/fullcalender.css" rel="stylesheet" />
+</head>
+<body>
+
+    <div id='calendar-container'>
+        <div id='calendar'></div>
+    </div>
+</body>
+</html>

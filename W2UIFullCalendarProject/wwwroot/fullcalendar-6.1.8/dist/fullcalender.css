@@ -1,0 +1,29 @@
+
+
+/*INDICATOR OK VE ÇÝZGÝ*/
+.fc .fc-timegrid-now-indicator-line {
+    position: absolute;
+    border: 3px solid red;
+}
+.fc-direction-ltr .fc-timegrid-now-indicator-arrow {
+    border-bottom-color: transparent;
+    border-top-color: transparent;
+    border-width: 8px 0px 8px 9px;
+    left: 0px;
+}
+
+.fc .fc-list-event:hover td {
+    /*    background-color: var(--fc-list-event-hover-bg-color);
+*/
+
+    background-color: #5389D6;
+}
+
+.fc-theme-standard td, .fc-theme-standard th {
+    border: 1px solid rgb(154 154 154);
+}
+
+.fc-timegrid-event-harness-inset .fc-timegrid-event, .fc-timegrid-event.fc-event-mirror, .fc-timegrid-more-link {
+    box-shadow: 0px 0px 0px 2px #df691a;
+}
+
